@@ -16,6 +16,7 @@ class ModelModule(pl.LightningModule):
 
         self.optimizer_args = optimizer_args
         self.scheduler_args = scheduler_args
+        self.validation_step_outputs = []
 
     def forward(self, batch):
         return self.backbone(batch)
@@ -27,9 +28,9 @@ class ModelModule(pl.LightningModule):
         self.metrics.update(pred, batch)
 
         if self.trainer is not None:
-            self.log(f'{prefix}/loss', loss.detach(), on_step=on_step, on_epoch=True)
+            self.log(f'{prefix}/loss', loss.detach(), on_step=on_step, on_epoch=True, sync_dist=True)
             self.log_dict({f'{prefix}/loss/{k}': v.detach() for k, v in loss_details.items()},
-                          on_step=on_step, on_epoch=True)
+                          on_step=on_step, on_epoch=True, sync_dist=True)
 
         # Used for visualizations
         if return_output:
@@ -49,7 +50,7 @@ class ModelModule(pl.LightningModule):
         self._log_epoch_metrics('train')
         self._enable_dataloader_shuffle(self.trainer.val_dataloaders)
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
         self._log_epoch_metrics('val')
 
     def _log_epoch_metrics(self, prefix: str):
@@ -68,9 +69,9 @@ class ModelModule(pl.LightningModule):
         for key, value in metrics.items():
             if isinstance(value, dict):
                 for subkey, val in value.items():
-                    self.log(f'{prefix}/metrics/{key}{subkey}', val)
+                    self.log(f'{prefix}/metrics/{key}{subkey}', val, sync_dist=True)
             else:
-                self.log(f'{prefix}/metrics/{key}', value)
+                self.log(f'{prefix}/metrics/{key}', value, sync_dist=True)
 
         self.metrics.reset()
 
@@ -78,9 +79,12 @@ class ModelModule(pl.LightningModule):
         """
         HACK for https://github.com/PyTorchLightning/pytorch-lightning/issues/11054
         """
-        for v in dataloaders:
-            v.sampler.shuffle = True
-            v.sampler.set_epoch(self.current_epoch)
+        dataloaders.sampler.shuffle=True
+        dataloaders.sampler.set_epoch(self.current_epoch)
+
+        # for v in dataloaders:
+        #     v.sampler.shuffle = True
+        #     v.sampler.set_epoch(self.current_epoch)
 
     def configure_optimizers(self, disable_scheduler=False):
         parameters = [x for x in self.backbone.parameters() if x.requires_grad]

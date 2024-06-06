@@ -3,6 +3,8 @@ from pathlib import Path
 import logging
 import pytorch_lightning as pl
 import hydra
+import torch
+from torch.utils.checkpoint import checkpoint
 
 from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -14,7 +16,7 @@ from cross_view_transformer.callbacks.visualization_callback import Visualizatio
 
 log = logging.getLogger(__name__)
 
-CONFIG_PATH = Path.cwd() / 'config'
+CONFIG_PATH = '/home/rxr230031/cross_view_transformers/config/'
 CONFIG_NAME = 'config.yaml'
 
 
@@ -34,6 +36,8 @@ def maybe_resume_training(experiment):
 
 @hydra.main(config_path=CONFIG_PATH, config_name=CONFIG_NAME)
 def main(cfg):
+    torch.set_float32_matmul_precision("high")
+
     setup_config(cfg)
 
     pl.seed_everything(cfg.experiment.seed, workers=True)
@@ -58,7 +62,6 @@ def main(cfg):
         LearningRateMonitor(logging_interval='epoch'),
         ModelCheckpoint(filename='model',
                         every_n_train_steps=cfg.experiment.checkpoint_interval),
-
         VisualizationCallback(viz_fn, cfg.experiment.log_image_interval),
         GitDiffCallback(cfg)
     ]

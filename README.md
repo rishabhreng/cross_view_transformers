@@ -85,6 +85,7 @@ The structure of the extracted data should look like the following
 │  └─ maps/
 │     ├─ basemap/
 │     └─ expansion/
+│     └─ prediction/
 └─ cvt_labels_nuscenes/
    ├─ scene-0001/
    ├─ scene-0001.json

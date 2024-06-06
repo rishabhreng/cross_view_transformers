@@ -1,4 +1,5 @@
 import torch
+from torch.utils.data import SequentialSampler
 import pytorch_lightning as pl
 
 from . import get_dataset_module_by_name
@@ -26,7 +27,9 @@ class DataModule(pl.LightningDataModule):
         if loader_config['num_workers'] == 0:
             loader_config['prefetch_factor'] = 2
 
-        return torch.utils.data.DataLoader(dataset, shuffle=shuffle, **loader_config)
+        return torch.utils.data.DataLoader(dataset, sampler=SequentialSampler(dataset), **loader_config)
+        # return torch.utils.data.DataLoader(dataset, shuffle=shuffle, **loader_config)
+
 
     def train_dataloader(self, shuffle=True):
         return self.get_split('train', loader=True, shuffle=shuffle)
